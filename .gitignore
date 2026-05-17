@@ -1,6 +1,6 @@
-shortlink
-shortlink.exe
-shortlink-linux
+/shortlink
+/shortlink.exe
+/shortlink-linux
 coverage.out
 data/
 *.db
