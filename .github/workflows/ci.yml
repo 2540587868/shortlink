@@ -86,7 +86,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           source: "${{ env.BINARY_NAME }}-linux"
-          target: "${{ env.DEPLOY_PATH }}/${{ env.BINARY_NAME }}.new"
+          target: "/tmp/${{ env.BINARY_NAME }}-deploy"
 
   deploy:
     needs: [build]
@@ -103,7 +103,7 @@ jobs:
           script: |
             set -e
             BINARY="${{ env.DEPLOY_PATH }}/${{ env.BINARY_NAME }}"
-            NEW="${BINARY}.new"
+            NEW="/tmp/${{ env.BINARY_NAME }}-deploy/${{ env.BINARY_NAME }}-linux"
             BAK="${BINARY}.bak"
 
             if [ ! -f "$NEW" ]; then
