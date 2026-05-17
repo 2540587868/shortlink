@@ -72,7 +72,7 @@ auth:
     - "token-a"
     - "token-b"
 `
-	os.WriteFile(path, []byte(data), 0644)
+	_ = os.WriteFile(path, []byte(data), 0644)
 
 	mgr, err := Load(path)
 	if err != nil {
@@ -113,7 +113,7 @@ func TestReload(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.yaml")
 
-	os.WriteFile(path, []byte(`server:
+	_ = os.WriteFile(path, []byte(`server:
   listen: ":1111"
   public_url: "http://old.example.com"
   admin_token: "old"
@@ -131,7 +131,7 @@ database:
 		t.Errorf("expected :1111, got %q", cfg.Server.Listen)
 	}
 
-	os.WriteFile(path, []byte(`server:
+	_ = os.WriteFile(path, []byte(`server:
   listen: ":2222"
   public_url: "http://new.example.com"
   admin_token: "new"
@@ -163,7 +163,7 @@ func TestReloadPreservesDefaults(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.yaml")
 
-	os.WriteFile(path, []byte(`server:
+	_ = os.WriteFile(path, []byte(`server:
   listen: ":3333"
   public_url: "http://partial.example.com"
 `), 0644)

@@ -19,7 +19,7 @@ concurrency:
 
 env:
   GOPROXY: 'https://goproxy.cn,direct'
-  GO_VERSION: '1.26'
+  GO_VERSION: '1.25'
   BINARY_NAME: shortlink
   DEPLOY_PATH: /opt/shortlink
   HEALTH_URL: http://127.0.0.1:8082/health

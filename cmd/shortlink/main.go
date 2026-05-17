@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"flag"
-	"fmt"
 	"log/slog"
 	"net/http"
 	_ "net/http/pprof"
@@ -46,8 +45,8 @@ func main() {
 
 	cfg := cfgMgr.Get()
 
-	if err := os.MkdirAll("data", 0755); err != nil {
-		slog.Error("failed to create data directory", "error", err)
+	if err2 := os.MkdirAll("data", 0755); err2 != nil {
+		slog.Error("failed to create data directory", "error", err2)
 		os.Exit(1)
 	}
 
@@ -56,7 +55,7 @@ func main() {
 		slog.Error("failed to open database", "error", err)
 		os.Exit(1)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(1)
@@ -149,16 +148,4 @@ func main() {
 			return
 		}
 	}
-}
-
-func printBanner(cfg *config.Config) {
-	fmt.Printf(`
-   ____  _               _   _      _      _
-  / ___|| |__   ___  _ _| | | |   _(_)_ __| | __
-  \___ \| '_ \ / _ \| '__| |_| | | | | '__| |/ /
-   ___) | | | | (_) | |  |  _  | |_| | |  |   <
-  |____/|_| |_|\___/|_|  |_| |_|\__,_|_|  |_|\_\
-
-  %s
-`, cfg.Server.PublicURL)
 }

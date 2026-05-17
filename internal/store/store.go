@@ -117,7 +117,7 @@ func (s *Store) ListLinks(page, pageSize int) ([]*model.ShortLink, int64, error)
 	if err != nil {
 		return nil, 0, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var links []*model.ShortLink
 	for rows.Next() {
@@ -140,7 +140,7 @@ func (s *Store) SearchLinks(query string) ([]*model.ShortLink, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var links []*model.ShortLink
 	for rows.Next() {
@@ -189,7 +189,7 @@ func (s *Store) GetDailyClickStats(slug string) (map[string]int64, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	result := make(map[string]int64)
 	for rows.Next() {
@@ -217,7 +217,7 @@ func (s *Store) GetTopReferers(slug string, limit int) ([]map[string]any, error)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var results []map[string]any
 	for rows.Next() {
@@ -239,7 +239,7 @@ func (s *Store) GetTopUserAgents(slug string, limit int) ([]map[string]any, erro
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var results []map[string]any
 	for rows.Next() {

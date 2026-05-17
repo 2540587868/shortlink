@@ -31,7 +31,7 @@ func newTestServer(t *testing.T) *Server {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	t.Cleanup(func() { db.Close() })
+	t.Cleanup(func() { _ = db.Close() })
 
 	st, err := store.New(db)
 	if err != nil {
@@ -57,7 +57,7 @@ func newTestConfigManager(t *testing.T, dir, adminToken string, tokens []string)
 
 	cfgPath := filepath.Join(dir, "config.yaml")
 	data, _ := yaml.Marshal(cfg)
-	os.WriteFile(cfgPath, data, 0644)
+	_ = os.WriteFile(cfgPath, data, 0644)
 
 	mgr, err := config.Load(cfgPath)
 	if err != nil {
@@ -86,6 +86,15 @@ func decodeJSON(t *testing.T, w *httptest.ResponseRecorder) map[string]any {
 		t.Fatalf("decode response: %v", err)
 	}
 	return result
+}
+
+func mustString(t *testing.T, m map[string]any, key string) string {
+	t.Helper()
+	v, ok := m[key].(string)
+	if !ok {
+		t.Fatalf("expected string value for key %q, got %T", key, m[key])
+	}
+	return v
 }
 
 func TestHealthEndpoint(t *testing.T) {
@@ -218,10 +227,13 @@ func TestListLinksPagination(t *testing.T) {
 	}
 
 	resp := decodeJSON(t, w)
-	if resp["page_size"].(float64) != 2 {
+	if v, ok := resp["page_size"].(float64); !ok || v != 2 {
 		t.Errorf("expected page_size 2, got %v", resp["page_size"])
 	}
-	links := resp["links"].([]any)
+	links, ok := resp["links"].([]any)
+	if !ok {
+		t.Fatal("expected links array")
+	}
 	if len(links) != 2 {
 		t.Errorf("expected 2 links on page, got %d", len(links))
 	}
@@ -241,7 +253,10 @@ func TestListLinksSearch(t *testing.T) {
 	}
 
 	resp := decodeJSON(t, w)
-	links := resp["links"].([]any)
+	links, ok := resp["links"].([]any)
+	if !ok {
+		t.Fatal("expected links array")
+	}
 	if len(links) != 1 {
 		t.Errorf("expected 1 search result, got %d", len(links))
 	}
@@ -253,7 +268,7 @@ func TestGetLink(t *testing.T) {
 	w := doRequest(srv.Handler(), http.MethodPost, "/api/v1/links",
 		`{"long_url": "https://example.com/target"}`)
 	resp := decodeJSON(t, w)
-	slug := resp["slug"].(string)
+	slug := mustString(t, resp, "slug")
 
 	w = doRequest(srv.Handler(), http.MethodGet, "/api/v1/links/"+slug, "")
 	if w.Code != http.StatusOK {
@@ -284,7 +299,7 @@ func TestDeleteLink(t *testing.T) {
 	w := doRequest(srv.Handler(), http.MethodPost, "/api/v1/links",
 		`{"long_url": "https://example.com/delete-me"}`)
 	resp := decodeJSON(t, w)
-	slug := resp["slug"].(string)
+	slug := mustString(t, resp, "slug")
 
 	w = doRequest(srv.Handler(), http.MethodDelete, "/api/v1/links/"+slug, "")
 	if w.Code != http.StatusOK {
@@ -317,7 +332,7 @@ func TestUpdateLink(t *testing.T) {
 	w := doRequest(srv.Handler(), http.MethodPost, "/api/v1/links",
 		`{"long_url": "https://example.com/original", "password": "old"}`)
 	resp := decodeJSON(t, w)
-	slug := resp["slug"].(string)
+	slug := mustString(t, resp, "slug")
 
 	w = doRequest(srv.Handler(), http.MethodPut, "/api/v1/links/"+slug,
 		`{"password": "new", "ttl_seconds": 7200}`)
@@ -342,7 +357,7 @@ func TestRedirectSuccess(t *testing.T) {
 	w := doRequest(srv.Handler(), http.MethodPost, "/api/v1/links",
 		`{"long_url": "https://example.com/target"}`)
 	resp := decodeJSON(t, w)
-	slug := resp["slug"].(string)
+	slug := mustString(t, resp, "slug")
 
 	w = doRequest(srv.Handler(), http.MethodGet, "/"+slug, "")
 	if w.Code != http.StatusFound {
@@ -404,7 +419,7 @@ func TestGetLinkStats(t *testing.T) {
 	w := doRequest(srv.Handler(), http.MethodPost, "/api/v1/links",
 		`{"long_url": "https://example.com/stats-test"}`)
 	resp := decodeJSON(t, w)
-	slug := resp["slug"].(string)
+	slug := mustString(t, resp, "slug")
 
 	w = doRequest(srv.Handler(), http.MethodGet, "/api/v1/links/"+slug+"/stats", "")
 	if w.Code != http.StatusOK {
@@ -422,7 +437,7 @@ func BenchmarkAPIRedirect(b *testing.B) {
 	w := doRequest(srv.Handler(), http.MethodPost, "/api/v1/links",
 		`{"long_url": "https://example.com/bench"}`)
 	resp := decodeJSON(&testing.T{}, w)
-	slug := resp["slug"].(string)
+	slug, _ := resp["slug"].(string)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -455,7 +470,7 @@ func TestGetDailyStats(t *testing.T) {
 	w := doRequest(srv.Handler(), http.MethodPost, "/api/v1/links",
 		`{"long_url": "https://example.com/daily-test"}`)
 	resp := decodeJSON(t, w)
-	slug := resp["slug"].(string)
+	slug := mustString(t, resp, "slug")
 
 	w = doRequest(srv.Handler(), http.MethodGet, "/api/v1/links/"+slug+"/stats/daily", "")
 	if w.Code != http.StatusOK {
@@ -806,7 +821,7 @@ func TestGetLinkStatsFlat(t *testing.T) {
 	w := doRequest(srv.Handler(), http.MethodPost, "/api/v1/links",
 		`{"long_url": "https://example.com/stats-flat"}`)
 	resp := decodeJSON(t, w)
-	slug := resp["slug"].(string)
+	slug := mustString(t, resp, "slug")
 
 	doRequest(srv.Handler(), http.MethodGet, "/"+slug, "")
 

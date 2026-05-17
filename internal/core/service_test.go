@@ -21,7 +21,7 @@ func newTestService(t *testing.T) Service {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	t.Cleanup(func() { db.Close() })
+	t.Cleanup(func() { _ = db.Close() })
 
 	st, err := store.New(db)
 	if err != nil {
@@ -103,7 +103,7 @@ func TestServiceList(t *testing.T) {
 	svc := newTestService(t)
 
 	for i := 0; i < 10; i++ {
-		svc.Create(model.CreateOptions{}, "https://example.com/"+string(rune('a'+i)))
+		_, _ = svc.Create(model.CreateOptions{}, "https://example.com/"+string(rune('a'+i)))
 	}
 
 	links, total, err := svc.List(1, 5)
@@ -121,8 +121,8 @@ func TestServiceList(t *testing.T) {
 func TestServiceSearch(t *testing.T) {
 	svc := newTestService(t)
 
-	svc.Create(model.CreateOptions{CustomSlug: "hello-world"}, "https://hello.example.com")
-	svc.Create(model.CreateOptions{CustomSlug: "goodbye"}, "https://bye.example.com")
+	_, _ = svc.Create(model.CreateOptions{CustomSlug: "hello-world"}, "https://hello.example.com")
+	_, _ = svc.Create(model.CreateOptions{CustomSlug: "goodbye"}, "https://bye.example.com")
 
 	results, err := svc.Search("hello")
 	if err != nil {
@@ -156,7 +156,7 @@ func BenchmarkServiceCreate(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		svc.Create(model.CreateOptions{}, "https://example.com/bench")
+		_, _ = svc.Create(model.CreateOptions{}, "https://example.com/bench")
 	}
 }
 
@@ -166,6 +166,6 @@ func BenchmarkServiceLookup(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		svc.Lookup(link.Slug)
+		_, _ = svc.Lookup(link.Slug)
 	}
 }

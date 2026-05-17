@@ -59,15 +59,15 @@ func (f *Filter) Contains(key string) bool {
 
 func (f *Filter) hash(key string) (uint64, uint64) {
 	h := fnv.New64a()
-	h.Write([]byte(key))
+	_, _ = h.Write([]byte(key))
 	h1 := h.Sum64()
-	h.Write([]byte{0})
+	_, _ = h.Write([]byte{0})
 	h2 := h.Sum64()
 	return h1, h2
 }
 
 func optimalM(n int, p float64) uint64 {
-	return uint64(float64(-n) * 0.6931471805599453 / (1 - 1/float64(n)) + 0.5)
+	return uint64(float64(-n)*0.6931471805599453/(1-1/float64(n)) + 0.5)
 }
 
 func optimalK(n int, m uint64) int {

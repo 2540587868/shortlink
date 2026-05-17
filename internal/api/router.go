@@ -435,8 +435,8 @@ func (s *Server) getTopStats(w http.ResponseWriter, r *http.Request, slug string
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
-		"slug":         slug,
-		"top_referers": referers,
+		"slug":            slug,
+		"top_referers":    referers,
 		"top_user_agents": userAgents,
 	})
 }
@@ -491,7 +491,7 @@ document.getElementById('error').style.display = 'block';
 </script>
 </body>
 </html>`
-	w.Write([]byte(passwordPageHTML))
+	_, _ = w.Write([]byte(passwordPageHTML))
 }
 
 func (s *Server) handleVerifyPassword(w http.ResponseWriter, r *http.Request) {

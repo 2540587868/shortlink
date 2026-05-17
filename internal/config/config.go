@@ -17,10 +17,10 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Listen    string `yaml:"listen"`
-	PublicURL string `yaml:"public_url"`
+	Listen     string `yaml:"listen"`
+	PublicURL  string `yaml:"public_url"`
 	AdminToken string `yaml:"admin_token"`
-	DebugPort string `yaml:"debug_port"`
+	DebugPort  string `yaml:"debug_port"`
 }
 
 type DatabaseConfig struct {
@@ -81,7 +81,11 @@ func (m *Manager) loadFile(cfg *Config) error {
 }
 
 func (m *Manager) Get() *Config {
-	return m.current.Load().(*Config)
+	v, ok := m.current.Load().(*Config)
+	if !ok {
+		return Default()
+	}
+	return v
 }
 
 func (m *Manager) Reload() error {

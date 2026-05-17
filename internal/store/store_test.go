@@ -19,7 +19,7 @@ func newTestDB(t *testing.T) *sql.DB {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	t.Cleanup(func() { db.Close() })
+	t.Cleanup(func() { _ = db.Close() })
 	return db
 }
 
@@ -37,7 +37,7 @@ func TestStoreInsertAndGet(t *testing.T) {
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
-	if err := s.InsertLink(link); err != nil {
+	if err = s.InsertLink(link); err != nil {
 		t.Fatalf("insert: %v", err)
 	}
 
@@ -64,9 +64,11 @@ func TestStoreDelete(t *testing.T) {
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
-	s.InsertLink(link)
+	if err = s.InsertLink(link); err != nil {
+		t.Fatalf("insert: %v", err)
+	}
 
-	if err := s.DeleteLink("xyz789"); err != nil {
+	if err = s.DeleteLink("xyz789"); err != nil {
 		t.Fatalf("delete: %v", err)
 	}
 
@@ -84,7 +86,7 @@ func TestStoreList(t *testing.T) {
 	}
 
 	for i := int64(1); i <= 5; i++ {
-		s.InsertLink(&model.ShortLink{
+		_ = s.InsertLink(&model.ShortLink{
 			ID:        i,
 			Slug:      "slug" + string(rune('0'+i)),
 			LongURL:   "https://example.com/" + string(rune('0'+i)),
@@ -93,7 +95,9 @@ func TestStoreList(t *testing.T) {
 		})
 	}
 
-	links, total, err := s.ListLinks(1, 10)
+	var links []*model.ShortLink
+	var total int64
+	links, total, err = s.ListLinks(1, 10)
 	if err != nil {
 		t.Fatalf("list: %v", err)
 	}
@@ -113,7 +117,7 @@ func TestStoreClickStats(t *testing.T) {
 	}
 
 	for i := 0; i < 5; i++ {
-		s.InsertClick("test", "https://ref.com", "GoTest", "hash")
+		_ = s.InsertClick("test", "https://ref.com", "GoTest", "hash")
 	}
 
 	total, err := s.GetClickStats("test")
@@ -140,7 +144,7 @@ func TestStoreSlugExists(t *testing.T) {
 		t.Error("expected slug to not exist")
 	}
 
-	s.InsertLink(&model.ShortLink{
+	_ = s.InsertLink(&model.ShortLink{
 		ID:        1,
 		Slug:      "exists1",
 		LongURL:   "https://example.com",
@@ -173,7 +177,7 @@ func TestStoreExpiresAt(t *testing.T) {
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
-	s.InsertLink(link)
+	_ = s.InsertLink(link)
 
 	got, err := s.GetLinkBySlug("exp123")
 	if err != nil {
