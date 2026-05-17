@@ -1,0 +1,15 @@
+server:
+  listen: ":8080"
+  public_url: "http://localhost:8080"
+  admin_token: "changeme"
+
+database:
+  path: "data/shortlink.db"
+
+short:
+  default_ttl_seconds: 0
+  cache_size: 10000
+
+auth:
+  tokens:
+    - "your-api-token-here"

@@ -1,0 +1,15 @@
+server:
+  listen: ":8082"
+  public_url: "https://link.747575.xyz"
+  admin_token: "sl_admin_Ch4ng3M3"
+
+database:
+  path: "/opt/shortlink/data/shortlink.db"
+
+short:
+  default_ttl_seconds: 0
+  cache_size: 10000
+
+auth:
+  tokens:
+    - "sl_api_t0k3n_pr0d"

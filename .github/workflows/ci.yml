@@ -1,0 +1,167 @@
+name: CI & Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      skip_checks:
+        description: 'Skip lint/test checks (build & deploy only)'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GOPROXY: 'https://goproxy.cn,direct'
+  GO_VERSION: '1.26'
+  BINARY_NAME: shortlink
+  DEPLOY_PATH: /opt/shortlink
+  HEALTH_URL: http://127.0.0.1:8082/health
+  SERVICE_NAME: shortlink
+
+jobs:
+  lint:
+    if: ${{ !inputs.skip_checks }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+      - run: go vet ./...
+      - uses: golangci/golangci-lint-action@v7
+        with:
+          version: v2.12.2
+          args: --timeout=5m
+          skip-cache: true
+          skip-save-cache: true
+          verify: false
+
+  test:
+    if: ${{ !inputs.skip_checks }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+      - run: go test ./... -count=1 -race -parallel=4 -timeout 120s
+
+  build:
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    if: always() && (needs.lint.result == 'success' || needs.lint.result == 'skipped') && (needs.test.result == 'success' || needs.test.result == 'skipped')
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Cross-compile Linux binary
+        run: |
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+            -trimpath \
+            -ldflags "-s -w -X main.version=${{ github.ref_name }} -X main.gitCommit=${{ github.sha }} -X main.buildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            -o ${{ env.BINARY_NAME }}-linux ./cmd/shortlink/
+
+      - name: Upload binary to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          source: "${{ env.BINARY_NAME }}-linux"
+          target: "${{ env.DEPLOY_PATH }}/${{ env.BINARY_NAME }}.new"
+
+  deploy:
+    needs: [build]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    steps:
+      - name: Deploy and restart
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          command_timeout: 2m
+          script: |
+            set -e
+            BINARY="${{ env.DEPLOY_PATH }}/${{ env.BINARY_NAME }}"
+            NEW="${BINARY}.new"
+            BAK="${BINARY}.bak"
+
+            if [ ! -f "$NEW" ]; then
+              echo "ERROR: new binary not found at $NEW"
+              exit 1
+            fi
+
+            chmod +x "$NEW"
+            cp "$BINARY" "$BAK"
+            systemctl stop ${{ env.SERVICE_NAME }}
+            mv "$NEW" "$BINARY"
+            systemctl start ${{ env.SERVICE_NAME }}
+
+      - name: Health check
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          command_timeout: 1m
+          script: |
+            HEALTHY=0
+            for i in $(seq 1 15); do
+              if curl -sf ${{ env.HEALTH_URL }} > /dev/null 2>&1; then
+                echo "Health check passed!"
+                HEALTHY=1
+                break
+              fi
+              sleep 2
+            done
+            if [ $HEALTHY -eq 0 ]; then
+              echo "ERROR: Health check failed after 30s"
+              journalctl -u ${{ env.SERVICE_NAME }} --no-pager -n 20
+              exit 1
+            fi
+
+      - name: Rollback on failure
+        if: failure()
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          command_timeout: 2m
+          script: |
+            BINARY="${{ env.DEPLOY_PATH }}/${{ env.BINARY_NAME }}"
+            BAK="${BINARY}.bak"
+            if [ -f "$BAK" ]; then
+              echo "Rolling back..."
+              systemctl stop ${{ env.SERVICE_NAME }}
+              mv "$BAK" "$BINARY"
+              systemctl start ${{ env.SERVICE_NAME }}
+              sleep 5
+              if curl -sf ${{ env.HEALTH_URL }} > /dev/null 2>&1; then
+                echo "Rollback successful!"
+              else
+                echo "Rollback failed! Manual intervention required."
+              fi
+            else
+              echo "No backup binary available for rollback"
+            fi

@@ -1,0 +1,9 @@
+shortlink
+shortlink.exe
+shortlink-linux
+coverage.out
+data/
+*.db
+*.db-shm
+*.db-wal
+config.local.yaml

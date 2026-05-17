@@ -1,0 +1,14 @@
+[Unit]
+Description=Shortlink URL Shortener Service
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/shortlink
+ExecStart=/opt/shortlink/shortlink -config /opt/shortlink/config.yaml
+Restart=always
+RestartSec=5
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
